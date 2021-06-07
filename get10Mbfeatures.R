@@ -9,7 +9,7 @@
 # Sum of CN change points (in absolute value), Maximum CN value, 
 # Minimum CN value and Weighted segment sum. 
 
-get10Mbfeatures<-function(abs_profiles,chrlen,keeptrack)
+get10Mbfeatures<-function(abs_profiles,chrlen,keeptrack=0)
 {
   samps<-getSampNames(abs_profiles)
   ## Features of segments
