@@ -33,5 +33,23 @@ devtools::install_github("friend1ws/pmsignature")
 library(pmsignature)
 library(Rcpp)
 
-## 
+## Load functions
+source("get10Mbfeatures.R")
+source("getFeatureVectorAndCountData.R")
+source("Turbo_functions.R")
+source("SegmentsToSignature.R")
+
+## Get the necessary data to find the signatures
+MF0<-get10Mbfeatures(all_CN,chrlen,0)
+MFM<-MF0[,c(1,3:9)]
+POFE<-c()
+for(j in 2:8){
+  POFE<-c(POFE,max(MFM[,j])+1)
+}
+FVCD<-getFeatureVectorAndCountData(MFM)
+FEVE<-FVCD[[1]]
+CODA<-FVCD[[2]]
+
+## Signature extraction
+SegmentsToSignature(MFM,POFE,FEVE,CODA,3)
 
