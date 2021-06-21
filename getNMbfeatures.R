@@ -23,6 +23,7 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
   Col7<-c() #Minimum CN
   Col8<-c() #Weighted segment sum 
   Col9<-c() #Distance to centromere
+  Col10<-c() #Length Oscilating CN
   for(i in samps)
   {
     if(class(abs_profiles)=="QDNAseqCopyNumbers")
@@ -104,6 +105,7 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
       for(j in 1:(length(intervals)-1)){
         segment_end<-which(Newcurrseg$end==(intervals[j+1]-1))
         segment_centre<-Newcurrseg[segment_end,2]-floor(N*10^6/2)
+        distCent<-min(abs(segment_start-CurrentCentPos),abs(segment_end-CurrentCentPos))
         segment_rows<-Newcurrseg[(segment_start+1):segment_end,]
         segment_start<-segment_end
         Col0<-c(Col0,i) #sample name
@@ -121,14 +123,29 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
         #Col8 = (weighted segment sum) 
         Col8<-c(Col8,sum(segment_rows$size*segment_rows$segVal))
         #Col9 = (distance to centromere)/(chromosome length)
-        Col9<-c(Col9,abs(segment_centre-CurrentCentPos)/CurrentChrLen)
+        Col9<-c(Col9,distCent)
+        #Number of oscillating CN segments
+        oscCounts<-0
+        if(nrow(segment_rows)>3)
+        {
+          prevval<-segment_rows$segVal[1]
+          count=0
+          for(j in 3:nrow(segment_rows))
+          {
+            if(segment_rows$segVal[j]==prevval&segment_rows$segVal[j]!=segment_rows$segVal[j-1])
+            {
+              count<-count+1
+            }else{
+              oscCounts<-oscCounts+count
+              count=0
+            }
+            prevval<-segment_rows$segVal[j-1]
+          }
+        }
+        Col10<-c(Col10,oscCounts)
       }
     }
   }
-  # Group the percentages and the weighted sum in bins
-  Col3<-floor(Col3*5)
-  Col4<-floor(Col4*5)
-  Col8<-floor(Col8/(N*10^5))
-  MFM<-data.frame(Col0,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9)
+  MFM<-data.frame(Col0,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10)
   return(MFM)
 }
