@@ -16,14 +16,14 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
   Col0<-c() #sample name
   Col1<-c() #chromosome name
   Col2<-c() #break point count
-  Col3<-c() #copy loss % 
-  Col4<-c() #copy gain % 
-  Col5<-c() #sum CN change points
+  Col3<-c() #CN deletions %
+  Col4<-c() #CN gains peaks (CN>=5) % 
+  Col5<-c() #mean change points size
   Col6<-c() #Maximum CN
-  Col7<-c() #Minimum CN
+  Col7<-c() #Mean CN
   Col8<-c() #Weighted segment sum 
   Col9<-c() #Distance to centromere
-  Col10<-c() #Length Oscilating CN
+  Col10<-c() #Length Oscillating CN
   for(i in samps)
   {
     if(class(abs_profiles)=="QDNAseqCopyNumbers")
@@ -52,8 +52,8 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
           rowtoadd<-data.frame(c,as.numeric(currseg$end[k])+1,
                                as.numeric(currseg$start[k+1])-1,currseg$segVal[k])
           names(rowtoadd)<-colnames(currseg)
-          newcurrseg[k+1,]<-rowtoadd
-          newcurrseg[(k+2):(dim(currseg)[1]+1),]<-currseg[(k+1):dim(currseg)[1],]
+          newcurrseg<-rbind(newcurrseg,rowtoadd)
+          newcurrseg<-rbind(newcurrseg,currseg[(k+1):dim(currseg)[1],])
           currseg<-newcurrseg
         }
         k<-k+1
@@ -101,28 +101,31 @@ getNMbfeatures<-function(abs_profiles,chrlen,centromere_pos,N,keeptrack=0)
                              NewEnd-NewStart+1,NewsegVal)
       colnames(Newcurrseg)<-c('chromosome','start','end','size','segVal')
       segment_start<-0
+      segment_start_pos<-1
       # Now we can calculate the information for the features
       for(j in 1:(length(intervals)-1)){
-        segment_end<-which(Newcurrseg$end==(intervals[j+1]-1))
-        segment_centre<-Newcurrseg[segment_end,2]-floor(N*10^6/2)
+        segment_end_pos<-which(Newcurrseg$end==(intervals[j+1]-1))
+        segment_end<-Newcurrseg$end[segment_end_pos]
+        segment_centre<-Newcurrseg[segment_end_pos,2]-floor(N*10^6/2)
         distCent<-min(abs(segment_start-CurrentCentPos),abs(segment_end-CurrentCentPos))
-        segment_rows<-Newcurrseg[(segment_start+1):segment_end,]
-        segment_start<-segment_end
+        segment_rows<-Newcurrseg[(segment_start_pos):segment_end_pos,]
+        segment_start<-segment_end+1
+        segment_start_pos<-segment_end_pos+1
         Col0<-c(Col0,i) #sample name
         Col1<-c(Col1,c) #current chromosome
         Col2<-c(Col2,length(which(diff(segment_rows$segVal)!=0))) #break points
         segment_losses<-which(segment_rows$segVal<2)
         segment_gains<-which(segment_rows$segVal>2)
-        #Col3 = copy loss % 
-        Col3<-c(Col3,sum(segment_rows$size[segment_losses])/sum(segment_rows$size))
-        #Col4 = copy gain %
-        Col4<-c(Col4,sum(segment_rows$size[segment_gains])/sum(segment_rows$size))
-        Col5<-c(Col5,sum(abs(diff(segment_rows$segVal)))) #sum CN changes
+        #Col3 = losses % 
+        Col3<-c(Col3,sum(segment_rows$size[segment_losses]))
+        #Col4 = gains %
+        Col4<-c(Col4,sum(segment_rows$size[segment_gains]))
+        Col5<-c(Col5,sum(abs(diff(segment_rows$segVal)))) #sum CN change size
         Col6<-c(Col6,max(segment_rows$segVal)) #max CN 
         Col7<-c(Col7,min(segment_rows$segVal)) #min CN
         #Col8 = (weighted segment sum) 
         Col8<-c(Col8,sum(segment_rows$size*segment_rows$segVal))
-        #Col9 = (distance to centromere)/(chromosome length)
+        #Col9 = (distance to centromere)
         Col9<-c(Col9,distCent)
         #Number of oscillating CN segments
         oscCounts<-0

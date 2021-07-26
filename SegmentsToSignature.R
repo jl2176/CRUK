@@ -22,7 +22,7 @@ SegmentsToSignature<-function (Segments_matrix, Possible_features, Feature_Vecto
     varK <- K
     BG <- 0
   }
-  sampleNum <- length(unique(Segments_matrix))
+  sampleNum <- length(unique(Segments_matrix[,1]))
   fdim <- Possible_features
   tempL <- -Inf
   tempPar <- c()
@@ -38,8 +38,8 @@ SegmentsToSignature<-function (Segments_matrix, Possible_features, Feature_Vecto
     }
     Q <- matrix(rgamma(sampleNum * K, 1, 1), K, sampleNum)
     Q <- sweep(Q, 2, apply(Q, 2, sum), `/`)
-    p0 <- c(convertToTurboF(as.vector(F), fdim, K, isBG), 
-            convertToTurboQ(as.vector(t(Q)), K, sampleNum))
+    p0 <- c(convertToTurbo_F(as.vector(F), fdim, K, isBG), 
+            convertToTurbo_Q(as.vector(t(Q)), K, sampleNum))
     Y <- list(list(sampleNum, fdim, Feature_Vector, Count_Data), 
               K, isBG, BG)
     res1 <- mySquareEM(p0, Y, tol = tol, maxIter = maxIter)
@@ -55,8 +55,8 @@ SegmentsToSignature<-function (Segments_matrix, Possible_features, Feature_Vecto
   }
   lenF <- varK * (sum(fdim) - length(fdim))
   lenQ <- sampleNum * (K - 1)
-  F <- convertFromTurboF(tempPar[1:lenF], fdim, K, isBG)
-  Q <- convertFromTurboQ(tempPar[(lenF + 1):(lenF + lenQ)], 
+  F <- convertFromTurbo_F(tempPar[1:lenF], fdim, K, isBG)
+  Q <- convertFromTurbo_Q(tempPar[(lenF + 1):(lenF + lenQ)], 
                           K, sampleNum)
   dim(F) <- c(varK, length(fdim), max(fdim))
   dim(Q) <- c(sampleNum, K)

@@ -2,7 +2,7 @@ chr_pos<-c(1,1,3,4,4,5,8,8,9,11,12,13,14,16,16,17,18,19,19,20,22)
 base_pos<-c(14912,15095,23476,16906,11272,18230,6851,3930,12948,
             13990,6888,2530,11446,2117,3040,8330,3790,7560,
             330,3030,3080,4870)
-samps<-getSampNames(all_CN)
+samps<-getSampNames(hq_CN)
 SampleByPosition_matrix<-matrix(0,nrow=length(samps),ncol=length(chr_pos))
 
 row_idx<-0
@@ -87,8 +87,9 @@ visMembership(MFD_Lena, MFD_Param_Lena)
 install.packages('pheatmap')
 library(pheatmap)
 
-mat=SampleByPosition_matrix
+mat2<-SampleByPosition_matrix
 
-pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
+pheatmap(mat2,show_rownames=FALSE,show_colnames=FALSE,
          scale = "none",clustering_method="ward.D2",
          clustering_distance_cols="euclidean")
+rownames(mat2)<-samps

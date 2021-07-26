@@ -53,8 +53,9 @@ hq_CN<-all_CN[,colnames(all_CN)%in%ids]
 MF0<-get10Mbfeatures(all_CN,chrlen,0)
 N<-10
 MF5<-getNMbfeatures(all_CN,chrlen,C19,N,0)
-#MFM<-MF0[,c(1,3:9)]
-MFM<-MF5[,c(1,3:10)]
+MF10hq<-getNMbfeatures(hq_CN,chrlen,C19,N,0)
+MFM<-MF10hq[,c(1,3:10)]
+#MFM<-MF5[,c(1,3:10)]
 #MF10<-MFM
 #Organize some of the columns into bins with fewer categories
 Col2_new<-MFM$Col2
@@ -72,19 +73,19 @@ Col7_new<-MFM$Col7
 Col7_new[which(Col6_new>6)]<-7
 MFM$Col7<-Col7_new
 Col8_new<-MFM$Col8
-Col8_new[which(MF5$Col8<=10)]<-0
-Col8_new[which(MF5$Col8>10&MF5$Col8<=20)]<-1
-Col8_new[which(MF5$Col8>20&MF5$Col8<=30)]<-2
-Col8_new[which(MF5$Col8>30&MF5$Col8<=40)]<-3
-Col8_new[which(MF5$Col8>40&MF5$Col8<=50)]<-4
-Col8_new[which(MF5$Col8>50)]<-5
+Col8_new[which(Col8_new<=10)]<-0
+Col8_new[which(Col8_new>10&Col8_new<=20)]<-1
+Col8_new[which(Col8_new>20&Col8_new<=30)]<-2
+Col8_new[which(Col8_new>30&Col8_new<=40)]<-3
+Col8_new[which(Col8_new>40&Col8_new<=50)]<-4
+Col8_new[which(Col8_new>50)]<-5
 MFM$Col8<-Col8_new
-MFM$Col9<-round(MF5$Col9/2,1)*10
+MFM$Col9<-round(MFM$Col9/2,1)*10
 
-
+#Remove segments without aberrations
+Final_MFM<-MFM[-which(MFM$Col2==0&MFM$Col3==0&MFM$Col4==0),]
 #Force all entries to be bigger than 0 to create the MutationFeatureData
-Final_MFM<-MFM
-Final_MFM[,2:9]<-MFM[,2:9]+1
+Final_MFM[,2:9]<-Final_MFM[,2:9]+1
 
 #Vector of Possible Features (POFE)
 POFE<-c()
@@ -159,7 +160,7 @@ MFD_Lena<-new(Class="MutationFeatureData",featureVectorList=featureVectorList_mo
               sampleList=as.character(unique(Final_MFM[,1])),countData=countData_Lena, 
               possibleFeatures=as.integer(POFE))
 NOS<-6 #Number of Signature
-MFD_Param_Lena<-getPMSignature(MFD_Lena,NOS,numInit = 50)
+MFD_Param_Lena<-getPMSignature(MFD_Lena,NOS,numInit = 10)
 
 #Signature by sample 
 heatmap(MFD_Param_Lena@sampleSignatureDistribution)
@@ -186,7 +187,6 @@ for(i in 1:nrow(selcomp)){
   CurrentFeature<-Feature_names[selcomp[i,1]]
   selcompNames<-c(selcompNames,paste(CurrentFeature,selcomp[i,2]))
 }
-selcompNames
 # MATNZ<-matrix(0,nrow=NOS,ncol=max(POFE))
 # MATNZ[selcomp]<-1
 # MATNZ #This gives an idea of some feature components that could have been ignored

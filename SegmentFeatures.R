@@ -19,9 +19,6 @@ SegmentFeatures<-function(abs_profiles,chrlen,centromere_pos)
       segTab<-abs_profiles[[i]]
       colnames(segTab)[4]<-"segVal"
     }
-    if(keeptrack==1){
-      print(i)
-    }
     # Round the segment values to integers
     segTab$segVal[as.numeric(segTab$segVal) < 0] <- 0
     segTab$segVal<-round(as.numeric(segTab$segVal))
@@ -31,7 +28,27 @@ SegmentFeatures<-function(abs_profiles,chrlen,centromere_pos)
       CurrentChrLen<-chrlen[chrlen[,1]==paste0("chr",c),2]
       CurrentCentPos<-centromere_pos[centromere_pos[,1]==c,4]
       currseg<-segTab[segTab$chromosome==c,]
-      
+      curr_c<-currseg$chromosome
+      curr_starts<-currseg$start
+      curr_ends<-currseg$end
+      curr_sv<-currseg$segVal
+      dels_sv<-c()
+      if(nrow(currseg)>1){
+        for(qt in 2:length(curr_sv)){
+          if(curr_sv[qt]==curr_sv[qt-1]){
+            dels_sv<-c(dels_sv,qt)
+          }
+        }
+      }
+      if(length(dels_sv)>0){
+        curr_c<-curr_c[-dels_sv]
+        curr_starts<-curr_starts[-dels_sv]
+        curr_ends<-curr_ends[-(dels_sv-1)]
+        curr_sv<-curr_sv[-dels_sv]
+        currseg_n<-colnames(currseg)
+        currseg<-data.frame(curr_c,curr_starts,curr_ends,curr_sv)
+        colnames(currseg)<-currseg_n
+      }
       for(n in 1:nrow(currseg)){
         Col0<-c(Col0,i) #Sample name
         Col1<-c(Col1,c) #Chromosome name
@@ -40,15 +57,15 @@ SegmentFeatures<-function(abs_profiles,chrlen,centromere_pos)
         #CN with respect to adjacent positions
         if(n==1&&nrow(currseg)>1){
           Col4<-c(Col4,0)
-          Col5<-c(Col5,currseg$segVal[n]-currseg$segVal[n+1])
+          Col5<-c(Col5,abs(currseg$segVal[n]-currseg$segVal[n+1]))
         }
         if(n>1&&n==nrow(currseg)){
-          Col4<-c(Col4,currseg$segVal[n]-currseg$segVal[n-1])
+          Col4<-c(Col4,abs(currseg$segVal[n]-currseg$segVal[n-1]))
           Col5<-c(Col5,0)
         }
         if(n>1&&n<nrow(currseg)){
-          Col4<-c(Col4,abs(currseg$segVal[n]-currseg$segVal[n-1]))
-          Col5<-c(Col5,abs(currseg$segVal[n]-currseg$segVal[n+1]))
+          Col4<-c(Col4,currseg$segVal[n]-currseg$segVal[n-1])
+          Col5<-c(Col5,currseg$segVal[n]-currseg$segVal[n+1])
         }
         if(n==1&&n==nrow(currseg)){
           Col4<-c(Col4,0)
