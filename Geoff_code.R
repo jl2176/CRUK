@@ -134,7 +134,7 @@ osCN_mm<-fitComponent(dat,dist="pois",seed=seed,model_selection=model_selection,
 
 dat<-as.numeric(CN_features[["bpchrarm"]][,2])
 bpchrarm_mm<-fitComponent(dat,dist="pois",seed=seed,model_selection=model_selection,
-                          min_prior=min_prior,niter=niter,nrep=3,min_comp=2,max_comp=5)
+                          min_prior=min_prior,niter=niter,nrep,min_comp=2,max_comp=5)
 
 dat<-as.numeric(CN_features[["changepoint"]][,2])
 changepoint_mm<-fitComponent(dat,seed=seed,model_selection=model_selection,
@@ -180,3 +180,91 @@ coefmap(sigs,Colv="consensus",tracks=c("basis:"), main="Patient x Signature matr
 dev.off()
 
 basismap(sigs,Rowv=NA,main="Signature x Component matrix")
+
+
+### PCAWG
+pcawg_CN_features<-readRDS("data/pcawg_CN_features.rds")
+pcawg_sample_component_matrix<-generateSampleByComponentMatrix(pcawg_CN_features,CN_components)
+
+NMF::aheatmap(pcawg_sample_component_matrix,Rowv=NULL, main="Component x Sample matrix")
+
+
+## Survival analysis
+#britroc feat_sig matrix
+feat_sig_mat<-basis(sigs)
+reord_britroc<-as.integer(c(2,6,5,4,7,3,1))
+names(reord_britroc)<-paste0("s",1:7)
+feat_sig_mat<-feat_sig_mat[,reord_britroc]
+colnames(feat_sig_mat)<-paste0("s",1:nsig)
+sig_feat_mat<-t(feat_sig_mat)
+
+sig_thresh<-0.01
+
+sig_pat_mat_hq<-scoef(sigs)
+sig_pat_mat_hq<-sig_pat_mat_hq[reord_britroc,]
+rownames(sig_pat_mat_hq)<-paste0("s",1:nsig)
+sig_pat_mat_hq<-normaliseMatrix(sig_pat_mat_hq,sig_thresh)
+
+sig_pat_mat_pcawg<-scoef(pcawg_sigs)
+rownames(sig_pat_mat_pcawg)<-paste0("s",1:nsig)
+sig_pat_mat_pcawg<-sig_pat_mat_pcawg[reord_pcawg,]
+rownames(sig_pat_mat_pcawg)<-paste0("s",1:nsig)
+sig_pat_mat_pcawg<-normaliseMatrix(sig_pat_mat_pcawg,sig_thresh)
+
+sig_pat_mat_tcga<-scoef(tcga_sigs)
+rownames(sig_pat_mat_tcga)<-paste0("s",1:nsig)
+sig_pat_mat_tcga<-sig_pat_mat_tcga[reord_tcga,]
+rownames(sig_pat_mat_tcga)<-paste0("s",1:nsig)
+sig_pat_mat_tcga<-normaliseMatrix(sig_pat_mat_tcga,sig_thresh)
+
+#extract features for lower quality samples
+lowquality_britroc_CN_features<-extractCopynumberFeatures(lq_CN)
+lowquality_britroc_sample_component_matrix<-generateSampleByComponentMatrix(lowquality_britroc_CN_features,CN_components)
+britroc_lq_ids<-rownames(lowquality_britroc_sample_component_matrix)
+
+#assign signatures
+sig_pat_mat_lq<-YAPSA::LCD(t(lowquality_britroc_sample_component_matrix),feat_sig_mat)
+rownames(sig_pat_mat_lq)<-paste0("s",1:nsig)
+sig_pat_mat_lq<-normaliseMatrix(sig_pat_mat_lq,sig_thresh)
+
+#assign signatures to remaining 2 and 3 star samples (for cases with multiple samples)
+remain_samp<-samp_annotation[(!samp_annotation$IM.JBLAB_ID%in%colnames(cbind(sig_pat_mat_hq,sig_pat_mat_lq)))&(!samp_annotation$star_rating==1),]
+remain_CN<-all_CN[,colnames(all_CN)%in%remain_samp$IM.JBLAB_ID]
+
+remain_britroc_CN_features<-extractCopynumberFeatures(remain_CN)
+remain_britroc_sample_component_matrix<-generateSampleByComponentMatrix(remain_britroc_CN_features,CN_components)
+
+britroc_remain_ids<-rownames(remain_britroc_sample_component_matrix)
+
+sig_pat_mat_remain<-YAPSA::LCD(t(remain_britroc_sample_component_matrix),feat_sig_mat)
+rownames(sig_pat_mat_remain)<-paste0("s",1:nsig)
+sig_pat_mat_remain<-normaliseMatrix(sig_pat_mat_remain,sig_thresh)
+
+sig_pat_mat_britroc<-cbind(sig_pat_mat_hq,sig_pat_mat_lq)
+sig_pat_mat_britroc_all<-cbind(sig_pat_mat_britroc,sig_pat_mat_remain)
+
+
+
+library(survival)
+set.seed(seed)
+samp_num<-0.7 #fraction of the data considered training
+
+tcga_clin<-read.table("data/tcga_sample_info.tsv",stringsAsFactors = F,header=T,sep="\t")
+pcawg_clin<-read.table("data/pcawg_sample_info.tsv",sep="\t",header=T,stringsAsFactors = F)
+pcawg_cohort<-read.table("data/pcawg_cohort_info.tsv",header=T,sep="\t",stringsAsFactors = F)
+
+#britroc survival data
+pat_info<-samp_annotation[,c("Britroc_No","IM.JBLAB_ID","star_rating")]
+pat_info<-samp_annotation[grepl("IM",samp_annotation$IM.JBLAB_ID),]
+pat_info<-pat_info[order(pat_info$Britroc_No,pat_info$star_rating,decreasing = T),]
+pat_info<-pat_info[!duplicated(pat_info$Britroc_No),]
+pat_info<-pat_info[!pat_info$IM.JBLAB_ID%in%c("IM_91","IM_70"),]#remove misclassified samples
+surv_dat<-read.table("data/britroc_survival_intervals.tsv",sep="\t",header=T,stringsAsFactors = F)
+surv_dat<-surv_dat[!duplicated(surv_dat$TRIALNO),]
+britroc_surv_dat<-merge(surv_dat,pat_info,by.x=1,by.y=1)
+rownames(britroc_surv_dat)<-britroc_surv_dat$IM.JBLAB_ID
+britroc_surv_dat<-britroc_surv_dat[colnames(sig_pat_mat_britroc_all)[colnames(sig_pat_mat_britroc_all)%in%rownames(britroc_surv_dat)],]
+britroc_surv_dat<-britroc_surv_dat[!(is.na(britroc_surv_dat$INT_START)|is.na(britroc_surv_dat$INT_END)),]
+britroc_surv_dat<-britroc_surv_dat[!(britroc_surv_dat$INT_START>britroc_surv_dat$INT_END),]
+britroc_train<-rownames(britroc_surv_dat)
+britroc_test<-rownames(britroc_surv_dat)[!rownames(britroc_surv_dat)%in%britroc_train]
